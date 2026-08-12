@@ -36,8 +36,16 @@ jobs:
 
       - name: Prepare Build Files
         run: |
-          BUILD_PATH=$(find . -maxdepth 3 -name "index.html" -not -path "*/node_modules/*" -not -path "./public/*" -not -path "./src/*" | head -n 1)
+          BUILD_PATH=$(find . -name "index.html" -not -path "*/node_modules/*" -not -path "./public/*" -not -path "./src/*" | head -n 1)
+          
+          if [ -z "$BUILD_PATH" ]; then
+            echo "Erro: Nenhuma pasta com index.html foi gerada no build."
+            exit 1
+          fi
+          
           TARGET_DIR=$(dirname "$BUILD_PATH")
+          echo "Pasta do build encontrada em: $TARGET_DIR"
+          
           touch "$TARGET_DIR/.nojekyll"
           cp "$TARGET_DIR/index.html" "$TARGET_DIR/404.html"
           echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
