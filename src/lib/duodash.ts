@@ -61,7 +61,7 @@ export const toISO = (d: Date) =>
 
 export const fromISO = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
 };
 
 export const todayISO = () => toISO(new Date());
@@ -165,22 +165,22 @@ function read<T>(key: string, fallback: T): T {
 function migrate<T>(key: string, items: unknown[]): T[] {
   if (key.endsWith("notas")) {
     return items.map((raw) => {
-      const n = raw as Record<string, unknown>;
+      const n = raw as Partial<Nota> & { text?: string };
       const legacy = typeof n.text === "string" ? n.text : "";
       return {
-        id: (n.id as string) ?? uid(),
-        title: (n.title as string) ?? legacy.split("\n")[0]?.slice(0, 60) ?? "Nota",
-        details: (n.details as string) ?? (n.title ? legacy : legacy.split("\n").slice(1).join("\n")),
-        tag: (n.tag as NotaTag) ?? "Detalhe",
+        id: n.id ?? uid(),
+        title: n.title ?? legacy.split("\n")[0]?.slice(0, 60) ?? "Nota",
+        details: n.details ?? (n.title ? legacy : legacy.split("\n").slice(1).join("\n")),
+        tag: n.tag ?? "Detalhe",
         pinned: Boolean(n.pinned),
-        createdAt: (n.createdAt as number) ?? Date.now(),
+        createdAt: n.createdAt ?? Date.now(),
       } as T;
     });
   }
   if (key.endsWith("passeios")) {
     return items.map((raw) => {
-      const p = raw as Record<string, unknown>;
-      return { ...(p as object), dates: Array.isArray(p.dates) ? p.dates : [] } as T;
+      const p = raw as Partial<Passeio>;
+      return { ...p, dates: Array.isArray(p.dates) ? p.dates : [] } as T;
     });
   }
   return items as T[];
