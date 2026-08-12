@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, NotebookPen, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Copy, Check, NotebookPen, Pencil, Pin, PinOff, Plus, Search, Trash2 } from "lucide-react";
 import { NOTA_TAGS, type Nota, type NotaTag, relativeDate, uid, useLocalList } from "@/lib/duodash";
 import { Badge, Chip, EmptyState, Sheet, inputClass } from "./ui";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,8 @@ export function NotasTab() {
   const [filter, setFilter] = useState<NotaTag | "Todas">("Todas");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Nota | null>(null);
-  const [text, setText] = useState("");
+  const [title, setTitle] = useState("");
+  const [details, setDetails] = useState("");
   const [tag, setTag] = useState<NotaTag>("Detalhe");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -27,41 +28,59 @@ export function NotasTab() {
       items
         .filter((n) => (filter === "Todas" ? true : n.tag === filter))
         .filter((n) =>
-          query.trim() ? n.text.toLowerCase().includes(query.trim().toLowerCase()) : true,
+          query.trim()
+            ? (n.title + " " + n.details).toLowerCase().includes(query.trim().toLowerCase())
+            : true,
         )
-        .sort((a, b) => b.createdAt - a.createdAt),
+        .sort(
+          (a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt - a.createdAt,
+        ),
     [items, filter, query],
   );
 
   const startNew = () => {
     setEditing(null);
-    setText("");
+    setTitle("");
+    setDetails("");
     setTag("Detalhe");
     setOpen(true);
   };
 
   const startEdit = (n: Nota) => {
     setEditing(n);
-    setText(n.text);
+    setTitle(n.title);
+    setDetails(n.details);
     setTag(n.tag);
     setOpen(true);
   };
 
   const save = () => {
-    if (!text.trim()) return;
+    if (!title.trim()) return;
     if (editing) {
       setItems((prev) =>
-        prev.map((n) => (n.id === editing.id ? { ...n, text: text.trim(), tag } : n)),
+        prev.map((n) =>
+          n.id === editing.id ? { ...n, title: title.trim(), details: details.trim(), tag } : n,
+        ),
       );
     } else {
-      setItems((prev) => [{ id: uid(), text: text.trim(), tag, createdAt: Date.now() }, ...prev]);
+      setItems((prev) => [
+        {
+          id: uid(),
+          title: title.trim(),
+          details: details.trim(),
+          tag,
+          pinned: false,
+          createdAt: Date.now(),
+        },
+        ...prev,
+      ]);
     }
     setOpen(false);
   };
 
   const copy = async (n: Nota) => {
     try {
-      await navigator.clipboard.writeText(n.text);
+      await navigator.clipboard.writeText(`${n.title}\n${n.details}`.trim());
       setCopiedId(n.id);
       setTimeout(() => setCopiedId((c) => (c === n.id ? null : c)), 1500);
     } catch {
@@ -119,21 +138,48 @@ export function NotasTab() {
           }
         />
       ) : (
-        <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <ul className="mt-3 space-y-2.5">
           {visible.map((n) => (
             <li
               key={n.id}
-              className="tap flex flex-col rounded-3xl border border-border bg-card p-4 shadow-soft hover:-translate-y-0.5 hover:shadow-lift"
+              className={cn(
+                "tap rounded-3xl border border-border bg-card p-4 shadow-soft",
+                n.pinned && "border-primary/40",
+              )}
             >
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{n.text}</p>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Badge color={tagVar[n.tag]}>{n.tag}</Badge>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {relativeDate(n.createdAt)}
-                  </span>
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-base leading-snug font-semibold">{n.title}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <Badge color={tagVar[n.tag]}>{n.tag}</Badge>
+                    {n.pinned ? <Badge color="--cat-viagem">Fixada</Badge> : null}
+                    <span className="text-xs text-muted-foreground">
+                      {relativeDate(n.createdAt)}
+                    </span>
+                  </div>
+                  {n.details ? (
+                    <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
+                      {n.details}
+                    </p>
+                  ) : null}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label={n.pinned ? "Desafixar nota" : "Fixar nota"}
+                    onClick={() =>
+                      setItems((prev) =>
+                        prev.map((x) => (x.id === n.id ? { ...x, pinned: !x.pinned } : x)),
+                      )
+                    }
+                    className={cn(
+                      "tap grid size-8 place-items-center rounded-full active:scale-90 hover:bg-muted",
+                      n.pinned ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {n.pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+                  </button>
                   <button
                     type="button"
                     aria-label="Copiar nota"
@@ -165,7 +211,7 @@ export function NotasTab() {
                       autoFocus
                       className="tap rounded-xl bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground active:scale-95"
                     >
-                      Confirmar
+                      Excluir
                     </button>
                   ) : (
                     <button
@@ -186,25 +232,46 @@ export function NotasTab() {
 
       <Sheet open={open} onClose={() => setOpen(false)} title={editing ? "Editar nota" : "Nova nota"}>
         <div className="space-y-3">
-          <textarea
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={4}
-            placeholder="Ela ama brigadeiro de pistache..."
-            className={cn(inputClass, "resize-none")}
-          />
-          <div className="flex flex-wrap gap-2">
-            {NOTA_TAGS.map((t) => (
-              <Chip key={t} active={tag === t} onClick={() => setTag(t)}>
-                {t}
-              </Chip>
-            ))}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase">
+              Título
+            </label>
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ama brigadeiro de pistache"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase">
+              Categoria
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {NOTA_TAGS.map((t) => (
+                <Chip key={t} active={tag === t} onClick={() => setTag(t)}>
+                  {t}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase">
+              Detalhes
+            </label>
+            <textarea
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              rows={4}
+              placeholder="Marca preferida, tamanho, onde comprar..."
+              className={cn(inputClass, "resize-none")}
+            />
           </div>
           <button
             type="button"
             onClick={save}
-            disabled={!text.trim()}
+            disabled={!title.trim()}
             className="tap w-full rounded-2xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lift active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
           >
             {editing ? "Salvar alterações" : "Salvar nota"}
