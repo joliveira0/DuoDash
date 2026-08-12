@@ -34,14 +34,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Create .nojekyll
+      - name: Detect build directory
         run: |
-          touch .output/public/.nojekyll || touch .output/.nojekyll
+          BUILD_PATH=$(find . -maxdepth 3 -name "index.html" -not -path "*/node_modules/*" -not -path "./public/*" -not -path "./src/*" | head -n 1)
+          TARGET_DIR=$(dirname "$BUILD_PATH")
+          echo "Found index.html in: $TARGET_DIR"
+          touch "$TARGET_DIR/.nojekyll"
+          echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './.output/public'
+          path: ${{ env.TARGET_DIR }}
 
       - name: Deploy to GitHub Pages
         id: deployment
