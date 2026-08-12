@@ -34,12 +34,12 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Detect build directory
+      - name: Prepare Build Files
         run: |
           BUILD_PATH=$(find . -maxdepth 3 -name "index.html" -not -path "*/node_modules/*" -not -path "./public/*" -not -path "./src/*" | head -n 1)
           TARGET_DIR=$(dirname "$BUILD_PATH")
-          echo "Found index.html in: $TARGET_DIR"
           touch "$TARGET_DIR/.nojekyll"
+          cp "$TARGET_DIR/index.html" "$TARGET_DIR/404.html"
           echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
 
       - name: Upload artifact
