@@ -254,7 +254,7 @@ function DaySheet({
             <Droplets className="size-3.5" /> Status do ciclo
           </h3>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge color={phaseVar[phase]}>{phaseLabel[phase]}</Badge>
+            <Badge color={phaseVar[phase] ?? "--cat-outros"}>{phaseLabel[phase]}</Badge>
             <span className="text-sm text-muted-foreground">
               Chance de gravidez: {chance.label} (~{chance.percent}%)
             </span>
