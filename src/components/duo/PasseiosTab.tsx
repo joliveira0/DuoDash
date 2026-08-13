@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { Check, MapPinned, Plus, Search, Trash2 } from "lucide-react";
+import { CalendarDays, Check, MapPinned, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import {
   PASSEIO_CATEGORIES,
   type Passeio,
   type PasseioCategory,
+  formatDatePT,
   uid,
   useLocalList,
 } from "@/lib/duodash";
 import { Badge, Chip, EmptyState, Sheet, inputClass } from "./ui";
+import { MonthGrid } from "./MonthGrid";
 import { cn } from "@/lib/utils";
 
 const catVar: Record<PasseioCategory, string> = {
@@ -23,11 +25,14 @@ export function PasseiosTab() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PasseioCategory | "Todos">("Todos");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Passeio | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<PasseioCategory>("Restaurante");
   const [notes, setNotes] = useState("");
+  const [dates, setDates] = useState<string[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
 
   const visible = useMemo(
     () =>
@@ -42,17 +47,56 @@ export function PasseiosTab() {
     [items, filter, query],
   );
 
-  const save = () => {
-    if (!title.trim()) return;
-    setItems((prev) => [
-      { id: uid(), title: title.trim(), category, notes: notes.trim(), done: false, createdAt: Date.now() },
-      ...prev,
-    ]);
+  const startNew = () => {
+    setEditing(null);
     setTitle("");
     setNotes("");
     setCategory("Restaurante");
+    setDates([]);
+    setShowPicker(false);
+    setOpen(true);
+  };
+
+  const startEdit = (p: Passeio) => {
+    setEditing(p);
+    setTitle(p.title);
+    setNotes(p.notes);
+    setCategory(p.category);
+    setDates(p.dates ?? []);
+    setShowPicker(false);
+    setOpen(true);
+  };
+
+  const save = () => {
+    if (!title.trim()) return;
+    const sorted = [...dates].sort();
+    if (editing) {
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === editing.id
+            ? { ...p, title: title.trim(), category, notes: notes.trim(), dates: sorted }
+            : p,
+        ),
+      );
+    } else {
+      setItems((prev) => [
+        {
+          id: uid(),
+          title: title.trim(),
+          category,
+          notes: notes.trim(),
+          dates: sorted,
+          done: false,
+          createdAt: Date.now(),
+        },
+        ...prev,
+      ]);
+    }
     setOpen(false);
   };
+
+  const toggleDate = (iso: string) =>
+    setDates((prev) => (prev.includes(iso) ? prev.filter((d) => d !== iso) : [...prev, iso]));
 
   return (
     <div className="pb-4">
@@ -69,7 +113,7 @@ export function PasseiosTab() {
           </div>
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={startNew}
             className="tap inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift active:scale-95"
           >
             <Plus className="size-4" /> Novo
@@ -96,7 +140,7 @@ export function PasseiosTab() {
           action={
             <button
               type="button"
-              onClick={() => setOpen(true)}
+              onClick={startNew}
               className="tap inline-flex items-center gap-1.5 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift active:scale-95"
             >
               <Plus className="size-4" /> Novo Passeio
@@ -141,8 +185,16 @@ export function PasseiosTab() {
                   >
                     {p.title}
                   </p>
-                  <div className="mt-1.5">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
                     <Badge color={catVar[p.category]}>{p.category}</Badge>
+                    {(p.dates ?? []).map((d) => (
+                      <span
+                        key={d}
+                        className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+                      >
+                        <CalendarDays className="size-3" /> {formatDatePT(d)}
+                      </span>
+                    ))}
                   </div>
                   {p.notes ? (
                     <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
@@ -151,41 +203,51 @@ export function PasseiosTab() {
                   ) : null}
                 </div>
 
-                {confirmId === p.id ? (
-                  <div className="flex shrink-0 flex-col gap-1">
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label="Editar passeio"
+                    onClick={() => startEdit(p)}
+                    className="tap grid size-8 place-items-center rounded-full text-muted-foreground active:scale-90 hover:bg-muted hover:text-foreground"
+                  >
+                    <Pencil className="size-4" />
+                  </button>
+                  {confirmId === p.id ? (
                     <button
                       type="button"
-                      onClick={() => setItems((prev) => prev.filter((x) => x.id !== p.id))}
+                      onClick={() => {
+                        setItems((prev) => prev.filter((x) => x.id !== p.id));
+                        setConfirmId(null);
+                      }}
+                      onBlur={() => setConfirmId(null)}
+                      autoFocus
                       className="tap rounded-xl bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground active:scale-95"
                     >
                       Excluir
                     </button>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => setConfirmId(null)}
-                      className="tap rounded-xl bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground active:scale-95"
+                      aria-label="Excluir passeio"
+                      onClick={() => setConfirmId(p.id)}
+                      className="tap grid size-8 place-items-center rounded-full text-muted-foreground active:scale-90 hover:bg-destructive/10 hover:text-destructive"
                     >
-                      Cancelar
+                      <Trash2 className="size-4" />
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    aria-label="Excluir passeio"
-                    onClick={() => setConfirmId(p.id)}
-                    className="tap grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground active:scale-90 hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
             </li>
           ))}
         </ul>
       )}
 
-      <Sheet open={open} onClose={() => setOpen(false)} title="Novo Passeio">
-        <div className="space-y-3">
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={editing ? "Editar Passeio" : "Novo Passeio"}
+      >
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto">
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase">
               Título
@@ -214,6 +276,37 @@ export function PasseiosTab() {
               ))}
             </select>
           </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase">
+              Datas (opcional)
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {dates.sort().map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleDate(d)}
+                  className="tap inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary active:scale-95"
+                >
+                  {formatDatePT(d)} <X className="size-3" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setShowPicker((s) => !s)}
+                className="tap inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted-foreground active:scale-95 hover:text-foreground"
+              >
+                <CalendarDays className="size-3.5" /> {showPicker ? "Fechar" : "Escolher datas"}
+              </button>
+            </div>
+            {showPicker ? (
+              <div className="mt-2">
+                <MonthGrid selected={dates} onDayClick={toggleDate} />
+              </div>
+            ) : null}
+          </div>
+
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase">
               Notas
@@ -232,7 +325,7 @@ export function PasseiosTab() {
             disabled={!title.trim()}
             className="tap w-full rounded-2xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lift active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
           >
-            Salvar passeio
+            {editing ? "Salvar alterações" : "Salvar passeio"}
           </button>
         </div>
       </Sheet>

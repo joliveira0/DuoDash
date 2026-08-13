@@ -1,25 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Heart, MapPinned, Moon, NotebookPen, Sun } from "lucide-react";
+import { CalendarHeart, Heart, MapPinned, Moon, NotebookPen, Sun } from "lucide-react";
 import { useTheme } from "@/lib/duodash";
 import { PasseiosTab } from "@/components/duo/PasseiosTab";
 import { NotasTab } from "@/components/duo/NotasTab";
+import { CalendarTab } from "@/components/duo/CalendarTab";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DuoDash — Passeios e notas do casal" },
+      { title: "LoveDash — Passeios, notas e ciclo do casal" },
       {
         name: "description",
         content:
-          "DuoDash é seu assistente de memória a dois: guarde ideias de passeios e notas sobre gostos, presentes e detalhes importantes.",
+          "LoveDash é seu assistente de memória a dois: passeios com datas, notas sobre gostos e um calendário com ciclo menstrual e intimidade.",
       },
-      { property: "og:title", content: "DuoDash — Passeios e notas do casal" },
+      { property: "og:title", content: "LoveDash — Passeios, notas e ciclo do casal" },
       {
         property: "og:description",
         content:
-          "Guarde ideias de passeios e notas sobre gostos, presentes e detalhes importantes, direto no seu celular.",
+          "Passeios com datas, notas organizadas por categoria e um calendário unificado com ciclo e intimidade.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -28,9 +29,11 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+type Tab = "passeios" | "notas" | "calendario";
+
 function Index() {
   const { dark, toggle } = useTheme();
-  const [tab, setTab] = useState<"passeios" | "notas">("passeios");
+  const [tab, setTab] = useState<Tab>("passeios");
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,7 +43,7 @@ function Index() {
             <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-lift">
               <Heart className="size-4" fill="currentColor" />
             </span>
-            <h1 className="truncate font-display text-xl font-semibold tracking-tight">DuoDash</h1>
+            <h1 className="truncate font-display text-xl font-semibold tracking-tight">LoveDash</h1>
           </div>
           <button
             type="button"
@@ -54,11 +57,14 @@ function Index() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 pb-28">
-        {tab === "passeios" ? <PasseiosTab /> : <NotasTab />}
+        {tab === "passeios" ? <PasseiosTab /> : tab === "notas" ? <NotasTab /> : <CalendarTab />}
+        <p className="mt-8 text-center text-xs text-muted-foreground">
+          LoveDash — tudo salvo no seu aparelho, mesmo offline.
+        </p>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
-        <div className="mx-auto grid max-w-2xl grid-cols-2 gap-1 px-4 py-2">
+        <div className="mx-auto grid max-w-2xl grid-cols-3 gap-1 px-4 py-2">
           <TabButton
             active={tab === "passeios"}
             onClick={() => setTab("passeios")}
@@ -70,6 +76,12 @@ function Index() {
             onClick={() => setTab("notas")}
             icon={<NotebookPen className="size-5" />}
             label="Notas"
+          />
+          <TabButton
+            active={tab === "calendario"}
+            onClick={() => setTab("calendario")}
+            icon={<CalendarHeart className="size-5" />}
+            label="Calendário"
           />
         </div>
       </nav>
